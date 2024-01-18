@@ -40,6 +40,7 @@ TENSOR_MECHANICS    := yes
 WATER_STEAM_EOS     := no
 XFEM                := yes
 POROUS_FLOW         := no
+OPTIMIZATION        := yes
 
 include $(MOOSE_DIR)/modules/modules.mk
 ###############################################################################
