@@ -17,11 +17,28 @@
 
 [NEML2]
   input = 'elasticity.i'
-  model = 'model'
+  model = 'elasticity_model'
   temperature = 'T'
   verbose = true
-  mode = ALL
+  # mode = ALL
+  mode = PARSE_ONLY
   device = 'cpu'
+  parameter_derivatives = "E"
+[]
+
+[Materials]
+  [stress]
+    type = CauchyStressFromNEML2Receiver
+    neml2_uo = neml2_stress_UO
+  []
+[]
+
+[UserObjects]
+  [neml2_stress_UO]
+    type = CauchyStressFromNEML2UO
+    temperature = 'T'
+    model = 'elasticity_model'
+  []
 []
 
 [AuxVariables]
@@ -113,7 +130,7 @@
     execute_on = TIMESTEP_END
   []
 
-  [stress_xx]
+  [cauchy_stress_xx]
     type = ElementAverageMaterialProperty
     mat_prop = cauchy_stress_xx
   []

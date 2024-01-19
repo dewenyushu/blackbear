@@ -40,6 +40,14 @@ NEML2Action::validParams()
       "model",
       "Name of the NEML2 model, i.e., the string inside the brackets [] in the NEML2 input file "
       "that corresponds to the model you want to use.");
+  // params.addParam<bool>(
+  //     "require_parameter_derivatives",
+  //     false,
+  //     "Whether to require derivatives of output with respect to model parameters from NEML2.");
+  params.addParam<std::vector<std::string>>(
+      "parameter_derivatives",
+      {},
+      "Adds a list of material parameters to get derivatives from NEML2.");
   params.addParam<bool>("verbose",
                         true,
                         "Whether to print additional information about the NEML2 model at the "
@@ -71,6 +79,8 @@ NEML2Action::NEML2Action(const InputParameters & params)
     _fname(getParam<FileName>("input")),
     _mname(getParam<std::string>("model")),
     _verbose(getParam<bool>("verbose")),
+    _parameter_derivatives(getParam<std::vector<std::string>>("parameter_derivatives")),
+    _require_parameter_derivatives(_parameter_derivatives.size() ? true : false),
     _mode(getParam<MooseEnum>("mode")),
     _device(getParam<std::string>("device"))
 #endif
@@ -90,6 +100,17 @@ NEML2Action::act()
     if (_verbose)
     {
       auto & model = neml2::Factory::get_object<neml2::Model>("Models", _mname);
+
+      // set requires_grad_() for eqch parameter if we request parameter derivatives from neml2
+      if (_require_parameter_derivatives)
+      {
+        for (auto param_name : _parameter_derivatives)
+        {
+          auto model_param = model.named_parameters(true)[param_name];
+          model_param.requires_grad_();
+        }
+      }
+
       model.to(_device);
 
       _console << COLOR_YELLOW << "*** BEGIN NEML2 INFO***" << std::endl;

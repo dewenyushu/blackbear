@@ -43,6 +43,12 @@ protected:
   /// Whether to print additional information about the NEML2 mateiral model
   const bool _verbose;
 
+  const std::vector<std::string> & _parameter_derivatives;
+
+  /// Whether to require derivatives of output with respect to model parameters
+
+  const bool _require_parameter_derivatives;
+
   /// The operation mode
   const MooseEnum _mode;
 
