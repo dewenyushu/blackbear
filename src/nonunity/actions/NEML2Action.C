@@ -40,14 +40,7 @@ NEML2Action::validParams()
       "model",
       "Name of the NEML2 model, i.e., the string inside the brackets [] in the NEML2 input file "
       "that corresponds to the model you want to use.");
-  // params.addParam<bool>(
-  //     "require_parameter_derivatives",
-  //     false,
-  //     "Whether to require derivatives of output with respect to model parameters from NEML2.");
-  params.addParam<std::vector<std::string>>(
-      "parameter_derivatives",
-      {},
-      "Adds a list of material parameters to get derivatives from NEML2.");
+
   params.addParam<bool>("verbose",
                         true,
                         "Whether to print additional information about the NEML2 model at the "
@@ -69,6 +62,10 @@ NEML2Action::validParams()
       "Device on which to evaluate the NEML2 model. The string supplied must follow the following "
       "schema: (cpu|cuda)[:<device-index>] where cpu or cuda specifies the device type, and "
       ":<device-index> optionally specifies a device index.");
+  params.addParam<std::vector<std::string>>(
+      "parameter_derivatives",
+      {},
+      "Adds a list of material parameters to get derivatives from NEML2.");
   return params;
 }
 
@@ -79,12 +76,16 @@ NEML2Action::NEML2Action(const InputParameters & params)
     _fname(getParam<FileName>("input")),
     _mname(getParam<std::string>("model")),
     _verbose(getParam<bool>("verbose")),
-    _parameter_derivatives(getParam<std::vector<std::string>>("parameter_derivatives")),
-    _require_parameter_derivatives(_parameter_derivatives.size() ? true : false),
     _mode(getParam<MooseEnum>("mode")),
-    _device(getParam<std::string>("device"))
+    _device(getParam<std::string>("device")),
+    _parameter_derivatives(getParam<std::vector<std::string>>("parameter_derivatives")),
+    _require_parameter_derivatives(_parameter_derivatives.size() ? true : false)
 #endif
 {
+  if (_mode != "ALL" && _require_parameter_derivatives)
+    paramError("mode",
+               "parameter derivatives are only computed when mode = ALL. Either set mode = ALL or "
+               "set parameter_derivatives in the associated userObject.");
 }
 
 void
@@ -100,16 +101,6 @@ NEML2Action::act()
     if (_verbose)
     {
       auto & model = neml2::Factory::get_object<neml2::Model>("Models", _mname);
-
-      // set requires_grad_() for eqch parameter if we request parameter derivatives from neml2
-      if (_require_parameter_derivatives)
-      {
-        for (auto param_name : _parameter_derivatives)
-        {
-          auto model_param = model.named_parameters(true)[param_name];
-          model_param.requires_grad_();
-        }
-      }
 
       model.to(_device);
 

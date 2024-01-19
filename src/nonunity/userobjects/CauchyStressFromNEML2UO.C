@@ -16,6 +16,7 @@
 
 #ifdef NEML2_ENABLED
 #include "NEML2Utils.h"
+#include "neml2/misc/math.h"
 #endif // NEML2_ENABLED
 
 registerMooseObject("BlackBearApp", CauchyStressFromNEML2UO);
@@ -28,7 +29,10 @@ CauchyStressFromNEML2UO::validParams()
                              "from all quadrature points. The batched input vector is sent through "
                              "a NEML2 material model to perform the constitutive update.");
   params.addCoupledVar("temperature", "The temperature");
-
+  params.addParam<std::vector<std::string>>(
+      "parameter_derivatives",
+      {},
+      "Adds a list of material parameters to get derivatives from NEML2.");
   // Since we use the NEML2 model to evaluate the residual AND the Jacobian at the same time, we
   // want to execute this userobject only at execute_on = LINEAR (i.e. during residual evaluation).
   ExecFlagEnum execute_options = MooseUtils::getDefaultExecFlagEnum();
@@ -40,7 +44,9 @@ CauchyStressFromNEML2UO::validParams()
 
 CauchyStressFromNEML2UO::CauchyStressFromNEML2UO(const InputParameters & params)
   : NEML2SolidMechanicsInterface<CauchyStressFromNEML2UOParent>(
-        params, "mechanical_strain", "temperature")
+        params, "mechanical_strain", "temperature"),
+    _parameter_derivatives(getParam<std::vector<std::string>>("parameter_derivatives")),
+    _require_parameter_derivatives(_parameter_derivatives.size() ? true : false)
 {
 #ifdef NEML2_ENABLED
   validateModel();
@@ -57,8 +63,29 @@ CauchyStressFromNEML2UO::timestepSetup()
 }
 
 void
+CauchyStressFromNEML2UO::preCompute()
+{
+  // Set requires_grad_() for eqch parameter if we request stress derivatives w.r.t parameter
+  if (_require_parameter_derivatives)
+  {
+    for (auto param_name : _parameter_derivatives)
+    {
+      auto model_param = model().named_parameters(true)[param_name];
+      model_param.requires_grad_();
+    }
+  }
+  // _console << COLOR_YELLOW << "*** BEGIN NEML2 INFO***" << std::endl;
+  // _console << std::endl << "Device: " << device() << std::endl << std::endl;
+  // _console << model() << std::endl;
+  // _console << "*** END NEML2 INFO ***" << COLOR_DEFAULT << std::endl;
+}
+
+void
 CauchyStressFromNEML2UO::batchCompute()
 {
+  // Get prepared
+  preCompute();
+
   try
   {
     // Allocate the input and output
@@ -85,6 +112,9 @@ CauchyStressFromNEML2UO::batchCompute()
         std::get<1>(_output_data[i]) = RankFourTensor(NEML2Utils::toMOOSE<SymmetricRankFourTensor>(
             _dout_din(stress(), strain()).batch_index({i})));
       }
+
+      // Additional calculations after stress
+      postCompute();
     }
   }
   catch (neml2::NEMLException & e)
@@ -99,6 +129,28 @@ CauchyStressFromNEML2UO::batchCompute()
                    e.what(),
                    "\nIt is possible that this error is related to NEML2.",
                    NEML2Utils::NEML2_help_message);
+  }
+}
+
+void
+CauchyStressFromNEML2UO::postCompute()
+{
+  // Calculate stress derivative w.r.t material parameters
+  if (_require_parameter_derivatives)
+  {
+    for (auto param_name : _parameter_derivatives)
+    {
+      auto model_param = model().named_parameters(true)[param_name];
+
+      // Fill the NEML2 output back into the Blackbear output data
+      for (const neml2::TorchSize i : index_range(_output_data))
+      {
+        // auto data = neml2::math::jacrev(_out(stress()), model_param);
+        /// TODO : need to be changed to get multiple derivatives. Should we just have multiple UOs instead?
+        std::get<2>(_output_data[i]) = NEML2Utils::toMOOSE<SymmetricRankTwoTensor>(
+            neml2::math::jacrev(_out(stress()), model_param).batch_index({i}));
+      }
+    }
   }
 }
 

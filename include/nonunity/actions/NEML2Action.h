@@ -43,16 +43,16 @@ protected:
   /// Whether to print additional information about the NEML2 mateiral model
   const bool _verbose;
 
-  const std::vector<std::string> & _parameter_derivatives;
-
-  /// Whether to require derivatives of output with respect to model parameters
-
-  const bool _require_parameter_derivatives;
-
   /// The operation mode
   const MooseEnum _mode;
 
   /// The device on which to evaluate the NEML2 model
   const torch::Device _device;
+
+  /// List of model parameters for which we wish to compute derivatives for
+  const std::vector<std::string> & _parameter_derivatives;
+
+  /// Flag to check whether derivative w.r.t. model parameters are requested
+  const bool _require_parameter_derivatives;
 #endif
 };

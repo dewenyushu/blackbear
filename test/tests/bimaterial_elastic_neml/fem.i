@@ -23,7 +23,7 @@
   # mode = ALL
   mode = PARSE_ONLY
   device = 'cpu'
-  parameter_derivatives = "E"
+  # parameter_derivatives = "E"
 []
 
 [Materials]
@@ -38,6 +38,7 @@
     type = CauchyStressFromNEML2UO
     temperature = 'T'
     model = 'elasticity_model'
+    parameter_derivatives = "E"
   []
 []
 
