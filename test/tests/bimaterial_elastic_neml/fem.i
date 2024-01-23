@@ -15,34 +15,9 @@
   []
 []
 
-[NEML2]
-  input = 'elasticity.i'
-  model = 'elasticity_model'
-  temperature = 'T'
-  verbose = true
-  # mode = ALL
-  mode = PARSE_ONLY
-  device = 'cpu'
-  # parameter_derivatives = "E"
-[]
-
-[Materials]
-  [stress]
-    type = CauchyStressFromNEML2Receiver
-    neml2_uo = neml2_stress_UO
-  []
-[]
-
-[UserObjects]
-  [neml2_stress_UO]
-    type = CauchyStressFromNEML2UO
-    temperature = 'T'
-    model = 'elasticity_model'
-    parameter_derivatives = "E"
-  []
-[]
-
 [AuxVariables]
+  [dummy]
+  []
   [T]
   []
 []
@@ -90,6 +65,60 @@
   []
 []
 
+[NEML2]
+  input = 'elasticity.i'
+  model = 'elasticity_model'
+  temperature = 'T'
+  verbose = true
+  # mode = ALL
+  mode = PARSE_ONLY
+  device = 'cpu'
+  # parameter_derivatives = "E"
+[]
+
+[Materials]
+  [stress]
+    type = CauchyStressFromNEML2Receiver
+    neml2_uo = neml2_stress_UO
+  []
+[]
+
+[Functions]
+  [E]
+    type = NearestReporterCoordinatesFunction
+    x_coord_name = parametrization/coordx
+    y_coord_name = parametrization/coordy
+    value_name = parametrization/youngs_modulus
+  []
+[]
+
+[Reporters]
+  [parametrization]
+    type = ConstantReporter
+    real_vector_names = 'coordx coordy youngs_modulus'
+    real_vector_values = '0 1 2; 0 1 2; 5 4 3'
+  []
+[]
+
+[UserObjects]
+  [neml2_stress_UO]
+    type = CauchyStressFromNEML2UO
+    temperature = 'T'
+    model = 'elasticity_model'
+    parameter_derivatives = "E"
+  []
+[]
+
+[VectorPostprocessors]
+  [grad_E]
+    type = AdjointStrainStressGradNEML2InnerProduct
+    neml2_uo = neml2_stress_UO
+    adjoint_strain_name = 'mechanical_strain'
+    variable = dummy
+    function = E
+  []
+[]
+
 [Executioner]
   type = Steady
   solve_type = NEWTON
@@ -97,18 +126,6 @@
   petsc_options_value = 'lu'
   # required for NEML2 material models
   residual_and_jacobian_together = true
-[]
-
-[Reporters]
-  [measure_data]
-    type = OptimizationData
-    variable = ux
-  []
-  [parametrization]
-    type = ConstantReporter
-    real_vector_names = 'coordx coordy lambda mu'
-    real_vector_values = '0 1 2; 0 1 2; 5 4 3; 1 2 3'
-  []
 []
 
 [Postprocessors]
@@ -129,11 +146,6 @@
     point = '-1.0 1.0 0.0'
     variable = ux
     execute_on = TIMESTEP_END
-  []
-
-  [cauchy_stress_xx]
-    type = ElementAverageMaterialProperty
-    mat_prop = cauchy_stress_xx
   []
 []
 
