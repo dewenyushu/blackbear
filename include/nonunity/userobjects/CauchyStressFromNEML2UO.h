@@ -28,6 +28,8 @@
 #include "SymmetricRankTwoTensor.h"
 #include "SymmetricRankFourTensor.h"
 
+#include "BatchScalarProperty.h"
+
 typedef BatchMaterial<BatchMaterialUtils::TupleStd,
                       // Outputs: stress, internal variables, dstress/dstrain, dstress/dparam
                       std::tuple<RankTwoTensor, RankFourTensor, RankTwoTensor>,
@@ -87,5 +89,16 @@ protected:
 
   /// Flag to check whether derivative w.r.t. model parameters are requested
   const bool _require_parameter_derivatives;
+
+  /// List of model parameters for which we wish set from MOOSE batch materials
+  const std::vector<std::string> & _reset_parameter_names;
+
+  /// Flag to check whether we wish to set model parameters from MOOSE batch materials
+  const bool _reset_parameters;
+
+  const MaterialProperty<Real> * _material_param;
+
+  const BatchScalarProperty * _material_param_uo;
+
 #endif
 };

@@ -33,6 +33,14 @@ CauchyStressFromNEML2UO::validParams()
       "parameter_derivatives",
       {},
       "Adds a list of material parameters to get derivatives from NEML2.");
+
+  params.addParam<std::vector<std::string>>(
+      "reset_parameter_names",
+      {},
+      "Add a list of model parameters for which we wish set from MOOSE batch materials.");
+  params.addParam<std::string>("param_material_prop", {}, "Property name.");
+  params.addParam<UserObjectName>(
+      "material_param_uo", {}, "Batch material user object storing model parameter.");
   // Since we use the NEML2 model to evaluate the residual AND the Jacobian at the same time, we
   // want to execute this userobject only at execute_on = LINEAR (i.e. during residual evaluation).
   ExecFlagEnum execute_options = MooseUtils::getDefaultExecFlagEnum();
@@ -46,7 +54,14 @@ CauchyStressFromNEML2UO::CauchyStressFromNEML2UO(const InputParameters & params)
   : NEML2SolidMechanicsInterface<CauchyStressFromNEML2UOParent>(
         params, "mechanical_strain", "temperature"),
     _parameter_derivatives(getParam<std::vector<std::string>>("parameter_derivatives")),
-    _require_parameter_derivatives(_parameter_derivatives.size() ? true : false)
+    _require_parameter_derivatives(_parameter_derivatives.size() ? true : false),
+    _reset_parameter_names(getParam<std::vector<std::string>>("reset_parameter_names")),
+    _reset_parameters(_reset_parameter_names.size() ? true : false),
+    _material_param(_reset_parameters
+                        ? &getMaterialProperty<Real>(getParam<std::string>("param_material_prop"))
+                        : nullptr),
+    _material_param_uo(_reset_parameters ? &getUserObject<BatchScalarProperty>("material_param_uo")
+                                         : nullptr)
 {
 #ifdef NEML2_ENABLED
   validateModel();
@@ -65,7 +80,7 @@ CauchyStressFromNEML2UO::timestepSetup()
 void
 CauchyStressFromNEML2UO::preCompute()
 {
-  // Set requires_grad_() for eqch parameter if we request stress derivatives w.r.t parameter
+  // Set requires_grad_() for each parameter if we request stress derivatives w.r.t parameter
   if (_require_parameter_derivatives)
   {
     for (auto param_name : _parameter_derivatives)
@@ -74,10 +89,34 @@ CauchyStressFromNEML2UO::preCompute()
       model_param.requires_grad_();
     }
   }
-  // _console << COLOR_YELLOW << "*** BEGIN NEML2 INFO***" << std::endl;
-  // _console << std::endl << "Device: " << device() << std::endl << std::endl;
-  // _console << model() << std::endl;
-  // _console << "*** END NEML2 INFO ***" << COLOR_DEFAULT << std::endl;
+
+  // Set the parameter value using batch material from MOOSE
+  if (_reset_parameters)
+  {
+    // TODO: extend to multiple parameters
+    if (!_material_param_uo->outputReady())
+      mooseError("Batch material parameter is not ready for output");
+
+    auto model_param = model().named_parameters(true)[_reset_parameter_names[0]];
+    auto param_values = NEML2Utils::toNEML2Batched(_material_param_uo->getOutputData());
+
+    // std::cout << "To Match: " << param_values.batch_sizes() << "\t" << param_values.base_sizes()
+    //           << std::endl;
+
+    // std::cout << "Parameter size: " << _material_param_uo->getOutputData().size() << std::endl;
+
+    // std::cout << "Before: " << model_param.batch_sizes() << "\t" << model_param.base_sizes()
+    //           << std::endl;
+
+    model_param = model_param.batch_expand_copy(param_values.batch_sizes());
+
+    // std::cout << "After: " << model_param.batch_sizes() << "\t" << model_param.base_sizes()
+    //           << std::endl;
+
+    model_param.copy_(param_values);
+
+    // std::cout << "Finish copy" << std::endl;
+  }
 }
 
 void

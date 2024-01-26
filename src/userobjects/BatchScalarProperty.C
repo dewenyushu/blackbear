@@ -16,21 +16,28 @@ InputParameters
 BatchScalarProperty::validParams()
 {
   auto params = BatchScalarPropertyParent::validParams();
-  params.addRequiredParam<MaterialPropertyName>(
-      "material_property",
-      "Name of the scalar material property.");
-  params.setDocString(
-      "execution_order_group",
-      "BatchScalarProperty userObject needs to be completely executed before vectorPostprocessors.");
+  params.addRequiredParam<MaterialPropertyName>("material_property",
+                                                "Name of the scalar material property.");
+  params.setDocString("execution_order_group",
+                      "BatchScalarProperty userObject needs to be completely executed before "
+                      "vectorPostprocessors.");
+
   params.set<int>("execution_order_group") = -1;
+
+  // keep consistent with CauchyStressFromNEML2UO
+  ExecFlagEnum execute_options = MooseUtils::getDefaultExecFlagEnum();
+  execute_options = {EXEC_INITIAL, EXEC_LINEAR};
+  params.set<ExecFlagEnum>("execute_on") = execute_options;
+
   params.addClassDescription("Convert scalar material property to BatchMaterial.");
   return params;
 }
 
 BatchScalarProperty::BatchScalarProperty(const InputParameters & params)
-  : BatchScalarPropertyParent(params,
-                          // here we pass the material property that we are trying to convert to BatchMaterial
-                         "material_property")
+  : BatchScalarPropertyParent(
+        params,
+        // here we pass the material property that we are trying to convert to BatchMaterial
+        "material_property")
 {
 }
 
