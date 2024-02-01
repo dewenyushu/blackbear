@@ -110,10 +110,12 @@ CauchyStressFromNEML2UO::preCompute()
 
     model_param = model_param.batch_expand_copy(param_values.batch_sizes());
 
+    auto model_param_copy = model_param.clone();
+
     // std::cout << "After: " << model_param.batch_sizes() << "\t" << model_param.base_sizes()
     //           << std::endl;
 
-    model_param.copy_(param_values);
+    model_param_copy.copy_(param_values);
 
     // std::cout << "Finish copy" << std::endl;
   }

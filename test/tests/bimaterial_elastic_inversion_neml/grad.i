@@ -54,19 +54,17 @@
 []
 
 [BCs]
-  [BCs]
-    [bottom_ux]
-      type = DirichletBC
-      variable = ux
-      boundary = bottom
-      value = 0.0
-    []
-    [bottom_uy]
-      type = DirichletBC
-      variable = uy
-      boundary = bottom
-      value = 0.0
-    []
+  [bottom_ux]
+    type = DirichletBC
+    variable = ux
+    boundary = bottom
+    value = 0.0
+  []
+  [bottom_uy]
+    type = DirichletBC
+    variable = uy
+    boundary = bottom
+    value = 0.0
   []
 []
 
@@ -75,10 +73,8 @@
   model = 'elasticity_model'
   temperature = 'T'
   verbose = true
-  # mode = ALL
   mode = PARSE_ONLY
   device = 'cpu'
-  # parameter_derivatives = "E"
 []
 
 [Materials]
@@ -86,12 +82,6 @@
     type = CauchyStressFromNEML2Receiver
     neml2_uo = neml2_stress_UO
   []
-  # [elasticity_tensor]
-  #   type = ComputeVariableIsotropicElasticityTensor
-  #   args = dummy
-  #   youngs_modulus = E_material
-  #   poissons_ratio = 0.25
-  # []
   [E_material]
     type = GenericFunctionMaterial
     prop_names = 'E_material'
@@ -114,10 +104,17 @@
 []
 
 [Reporters]
+  [measure_data]
+    type = OptimizationData
+    variable = ux
+  []
+  [misfit]
+    type = OptimizationData
+  []
   [parametrization]
     type = ConstantReporter
     real_vector_names = 'coordx coordy youngs_modulus'
-    real_vector_values = '0 1 2; 0 1 2; 5 4 3'
+    real_vector_values = '0 1 2; 0 1 2; 7.5 7.5 7.5'
   []
 []
 
@@ -131,7 +128,7 @@
 []
 
 [VectorPostprocessors]
-  [grad_E]
+  [grad_youngs_modulus]
     type = AdjointStrainStressGradNEML2InnerProduct
     neml2_uo = neml2_stress_UO
     adjoint_strain_name = 'mechanical_strain'

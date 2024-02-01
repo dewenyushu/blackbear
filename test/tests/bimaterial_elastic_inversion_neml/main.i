@@ -39,7 +39,7 @@
 [MultiApps]
   [forward]
     type = FullSolveMultiApp
-    input_files = model.i
+    input_files = forward.i
     execute_on = FORWARD
   []
   [adjoint]

@@ -70,10 +70,8 @@
   model = 'elasticity_model'
   temperature = 'T'
   verbose = true
-  # mode = ALL
   mode = PARSE_ONLY
   device = 'cpu'
-  # parameter_derivatives = "E"
 []
 
 [Materials]
@@ -156,5 +154,5 @@
 
 [Outputs]
   file_base = 'forward'
-  console = true
+  console = false
 []
